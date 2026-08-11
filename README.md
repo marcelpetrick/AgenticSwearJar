@@ -195,11 +195,15 @@ before flipping the switch.
 
 ## Develop and verify
 
+Run the same local quality gate used before every commit:
+
 ```bash
-python3 -m unittest discover -v
-ruff check .
-mypy
+./localPipeline.sh
 ```
+
+The application has no runtime dependencies. The development pipeline expects `ruff` and `mypy`
+on `PATH`; it runs the complete test suite, lint and formatting checks, strict type checking, and
+Git's whitespace validation, stopping at the first failure.
 
 The test suite covers both history shapes, canonical variants, Unicode-aware whole-word behavior,
 date filtering, malformed records, combined statistics, and the promise that raw prompt text and
