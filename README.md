@@ -221,12 +221,14 @@ histories:
 
 It requires Chromium and `img2pdf`, then creates and updates:
 
-- [`public/report.html`](public/report.html) — the interactive, redacted dashboard;
-- [`public/report.json`](public/report.json) — aggregate data behind every published number;
-- [`public/linkedin-carousel.html`](public/linkedin-carousel.html) — four-slide carousel source;
-- [`public/slides/`](public/slides/) — four 1080×1080 RGB screenshots; and
-- [`public/agentic-swear-jar-linkedin.pdf`](public/agentic-swear-jar-linkedin.pdf) — the square,
-  four-page LinkedIn document.
+- `public/report.html` — the interactive, redacted dashboard;
+- `public/report.json` — aggregate data behind every published number;
+- `public/linkedin-carousel.html` — four-slide carousel source;
+- `public/slides/` — four 1080×1080 RGB screenshots; and
+- `public/agentic-swear-jar-linkedin.pdf` — the square, four-page LinkedIn document.
+
+The complete `public/` directory is generated locally and ignored by Git. Rebuilding it never stages
+personal statistics or publication files by accident.
 
 The public build uses `--redact-terms`: observed vocabulary retains its first character for visual
 rhythm, while every remaining character becomes a solid marker block. The carousel builder refuses
