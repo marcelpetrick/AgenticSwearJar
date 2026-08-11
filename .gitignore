@@ -7,5 +7,5 @@ __pycache__/
 .venv/
 dist/
 build/
-report.html
-report.json
+/report.html
+/report.json

@@ -323,6 +323,16 @@ def serialize(result: Analysis, sources: dict[str, Path], lexicon_size: int) -> 
     }
 
 
+def redact_terms(data: dict[str, Any]) -> None:
+    """Redact observed term labels in-place before creating public artifacts."""
+    for source in data["sources"].values():
+        for entry in source["terms"]:
+            term = entry["term"]
+            entry["term"] = term[:1] + "█" * max(0, len(term) - 1)
+    data["terms_redacted"] = True
+    data["privacy"] += " Observed term labels are redacted after their first character."
+
+
 def parse_boundary(value: str | None, *, end: bool = False) -> datetime | None:
     if not value:
         return None

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from swearstats.analyzer import analyze, load_lexicon, parse_boundary, serialize
+from swearstats.analyzer import analyze, load_lexicon, parse_boundary, redact_terms, serialize
 from swearstats.report import write_report
 
 
@@ -116,6 +116,22 @@ class AnalyzerTests(unittest.TestCase):
         self.assertNotIn(secret, rendered)
         self.assertNotIn("/secret/path", rendered)
         self.assertIn("Aggregate counts only", rendered)
+
+    def test_public_redaction_keeps_only_first_character(self) -> None:
+        codex = self.write_jsonl(
+            "codex.jsonl",
+            [{"text": "hecking blast", "ts": 1_725_408_000, "session_id": "a"}],
+        )
+        result = analyze([("codex", codex)], self.lexicon)
+        data = serialize(result, {"codex": codex}, len(self.lexicon))
+
+        redact_terms(data)
+
+        rendered = json.dumps(data)
+        self.assertNotIn("heck", rendered)
+        self.assertNotIn("blast", rendered)
+        self.assertEqual(data["sources"]["all"]["terms"][0]["term"], "h███")
+        self.assertTrue(data["terms_redacted"])
 
 
 if __name__ == "__main__":

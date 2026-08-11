@@ -11,7 +11,7 @@ from importlib.resources import files
 from pathlib import Path
 
 from . import __version__
-from .analyzer import SOURCE_NAMES, analyze, load_lexicon, parse_boundary, serialize
+from .analyzer import SOURCE_NAMES, analyze, load_lexicon, parse_boundary, redact_terms, serialize
 from .report import write_report
 
 
@@ -32,6 +32,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("-o", "--output", type=Path, default=Path("report.html"))
     parser.add_argument("--json", dest="json_output", type=Path, help="also write aggregate JSON")
+    parser.add_argument(
+        "--redact-terms",
+        action="store_true",
+        help="keep only the first character of observed terms in HTML and JSON",
+    )
     parser.add_argument(
         "--open", action="store_true", help="open the report in the default browser"
     )
@@ -82,6 +87,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     result = analyze(sources.items(), lexicon, since=since, until=until)
     data = serialize(result, sources, len(lexicon))
+    if args.redact_terms:
+        redact_terms(data)
     output = args.output.expanduser().resolve()
     write_report(data, output)
     if args.json_output:

@@ -145,7 +145,8 @@ usually more honest.
 usage: swear-stats [-h] [--claude-history PATH] [--codex-history PATH]
                    [--lexicon TSV] [--replace-lexicon]
                    [--since YYYY-MM-DD] [--until YYYY-MM-DD]
-                   [-o PATH] [--json PATH] [--open] [--strict-inputs]
+                   [-o PATH] [--json PATH] [--redact-terms]
+                   [--open] [--strict-inputs]
 ```
 
 Examples:
@@ -201,13 +202,36 @@ Run the same local quality gate used before every commit:
 ./localPipeline.sh
 ```
 
-The application has no runtime dependencies. The development pipeline expects `ruff` and `mypy`
-on `PATH`; it runs the complete test suite, lint and formatting checks, strict type checking, and
-Git's whitespace validation, stopping at the first failure.
+The application has no runtime dependencies. The development pipeline expects `shellcheck`, `ruff`,
+and `mypy` on `PATH`; it runs the complete test suite, shell and Python linting, formatting checks,
+strict type checking, and Git's whitespace validation, stopping at the first failure.
 
 The test suite covers both history shapes, canonical variants, Unicode-aware whole-word behavior,
 date filtering, malformed records, combined statistics, and the promise that raw prompt text and
 project paths never enter the HTML.
+
+## Publish the LinkedIn carousel
+
+The repository includes a reproducible public build based on the real Claude Code and Codex CLI
+histories:
+
+```bash
+./buildPublicArtifacts.sh
+```
+
+It requires Chromium and `img2pdf`, then creates and updates:
+
+- [`public/report.html`](public/report.html) — the interactive, redacted dashboard;
+- [`public/report.json`](public/report.json) — aggregate data behind every published number;
+- [`public/linkedin-carousel.html`](public/linkedin-carousel.html) — four-slide carousel source;
+- [`public/slides/`](public/slides/) — four 1080×1080 RGB screenshots; and
+- [`public/agentic-swear-jar-linkedin.pdf`](public/agentic-swear-jar-linkedin.pdf) — the square,
+  four-page LinkedIn document.
+
+The public build uses `--redact-terms`: observed vocabulary retains its first character for visual
+rhythm, while every remaining character becomes a solid marker block. The carousel builder refuses
+unredacted JSON. Raw prompts, project paths, session IDs, and uncensored observed terms are not
+published.
 
 ## Limits, honestly stated
 
