@@ -28,16 +28,16 @@ of this locally with ordinary parsing, Unicode-aware tokenization, dictionary lo
 arithmetic. No model judges the language. No API receives the prompts. No raw prompt text goes into
 the report.
 
-```text
-┌──────────────────── AGENTIC SWEAR JAR ────────────────────┐
-│  4,826 prompts       317 hits       5.4% spicy prompts    │
-│                                                          │
-│  Claude Code  ███████░░  7.8 / 100 prompts               │
-│  Codex CLI    █████░░░░  5.1 / 100 prompts               │
-│                                                          │
-│  Your code is still compiling. Probably.                 │
-└──────────────────────────────────────────────────────────┘
-```
+## Current state
+
+![](media/currentState.png)
+
+
+**Author: Marcel Petrick <mail@marcelpetrick.it>**
+
+**License: GPLv3 or later. See `LICENSE`.**
+
+**Note: projected is generated with AI.**
 
 ## Make the report
 
