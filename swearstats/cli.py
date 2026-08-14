@@ -87,6 +87,7 @@ def _resolve_window(args: argparse.Namespace) -> tuple[datetime | None, datetime
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    print(f"swear-stats {__version__}")
     requested = {
         "claude": args.claude_history.expanduser(),
         "codex": args.codex_history.expanduser(),
