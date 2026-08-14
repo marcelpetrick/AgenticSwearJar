@@ -7,11 +7,20 @@ import json
 import sys
 import webbrowser
 from collections.abc import Sequence
+from datetime import datetime
 from importlib.resources import files
 from pathlib import Path
 
 from . import __version__
-from .analyzer import SOURCE_NAMES, analyze, load_lexicon, parse_boundary, redact_terms, serialize
+from .analyzer import (
+    SOURCE_NAMES,
+    Lexeme,
+    analyze,
+    load_lexicon,
+    parse_boundary,
+    redact_terms,
+    serialize,
+)
 from .report import write_report
 
 
@@ -47,6 +56,35 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+class _CliError(Exception):
+    """User-facing argument error; main() prints it and returns exit status 2."""
+
+
+def _resolve_lexicon(args: argparse.Namespace) -> dict[str, Lexeme]:
+    """Merge the bundled lexicon with any --lexicon files and load them."""
+    lexicon_paths = [path.expanduser() for path in args.lexicon]
+    if not args.replace_lexicon:
+        lexicon_paths.insert(0, Path(str(files("swearstats").joinpath("data/en.tsv"))))
+    if not lexicon_paths:
+        raise _CliError("--replace-lexicon requires at least one --lexicon")
+    try:
+        return load_lexicon(lexicon_paths)
+    except (OSError, ValueError) as error:
+        raise _CliError(str(error)) from error
+
+
+def _resolve_window(args: argparse.Namespace) -> tuple[datetime | None, datetime | None]:
+    """Parse --since/--until into local-time boundaries and check their ordering."""
+    try:
+        since = parse_boundary(args.since)
+        until = parse_boundary(args.until, end=True)
+    except ValueError as error:
+        raise _CliError(str(error)) from error
+    if since and until and since >= until:
+        raise _CliError("--since must be on or before --until")
+    return since, until
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     requested = {
@@ -67,22 +105,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         print("error: no history files found", file=sys.stderr)
         return 2
 
-    bundled = Path(str(files("swearstats").joinpath("data/en.tsv")))
-    lexicon_paths = [path.expanduser() for path in args.lexicon]
-    if not args.replace_lexicon:
-        lexicon_paths.insert(0, bundled)
-    if not lexicon_paths:
-        print("error: --replace-lexicon requires at least one --lexicon", file=sys.stderr)
-        return 2
     try:
-        lexicon = load_lexicon(lexicon_paths)
-        since = parse_boundary(args.since)
-        until = parse_boundary(args.until, end=True)
-    except (OSError, ValueError) as error:
+        lexicon = _resolve_lexicon(args)
+        since, until = _resolve_window(args)
+    except _CliError as error:
         print(f"error: {error}", file=sys.stderr)
-        return 2
-    if since and until and since >= until:
-        print("error: --since must be on or before --until", file=sys.stderr)
         return 2
 
     result = analyze(sources.items(), lexicon, since=since, until=until)
