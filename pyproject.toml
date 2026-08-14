@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "swear-stats"
-version = "1.0.0"
+dynamic = ["version"]
 description = "Private, local profanity statistics for Claude Code and Codex CLI histories"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -21,6 +21,10 @@ packages = ["swearstats"]
 
 [tool.setuptools.package-data]
 swearstats = ["data/*.tsv"]
+
+# Single source of truth for the version: swearstats/__init__.py.
+[tool.setuptools.dynamic]
+version = { attr = "swearstats.__version__" }
 
 [tool.ruff]
 line-length = 100
