@@ -196,15 +196,24 @@ before flipping the switch.
 
 ## Develop and verify
 
-Run the same local quality gate used before every commit:
+Install the pinned toolchain, then run the same local quality gate used before every commit:
 
 ```bash
+python3 -m venv .venv
+.venv/bin/pip install --group dev
+source .venv/bin/activate
 ./localPipeline.sh
 ```
 
 The application has no runtime dependencies. The development pipeline expects `shellcheck`, `ruff`,
 and `mypy` on `PATH`; it runs the complete test suite, shell and Python linting, formatting checks,
 strict type checking, and Git's whitespace validation, stopping at the first failure.
+
+Those three tools are pinned to exact versions in the `dev` dependency group in `pyproject.toml`,
+so every machine checks against the same rule sets — a linter minor release can otherwise enable
+rules that pass locally and fail elsewhere. `shellcheck-py` ships the `shellcheck` binary as a
+wheel; a system-wide `shellcheck` of the same version works just as well. Installing the group
+needs pip 25.1 or newer for `--group`.
 
 The test suite covers both history shapes, canonical variants, Unicode-aware whole-word behavior,
 date filtering, malformed records, combined statistics, and the promise that raw prompt text and
