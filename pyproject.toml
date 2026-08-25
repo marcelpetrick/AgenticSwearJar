@@ -29,7 +29,7 @@ dev = [
 packages = ["swearstats"]
 
 [tool.setuptools.package-data]
-swearstats = ["data/*.tsv"]
+swearstats = ["data/*.tsv", "assets/*.css", "assets/*.js"]
 
 # Single source of truth for the version: swearstats/__init__.py.
 [tool.setuptools.dynamic]
