@@ -23,5 +23,5 @@ metric(fmt(s.streaks.longest_clean),'Longest clean run','consecutive prompts')+
 }
 const tabs=document.getElementById('tabs');Object.entries(DATA.sources).forEach(([key,s])=>{const b=document.createElement('button');b.className='tab';b.dataset.key=key;b.textContent=s.label;b.onclick=()=>render(key);tabs.appendChild(b)});
 document.getElementById('period').textContent=DATA.period.first?`Observed ${new Date(DATA.period.first).toLocaleDateString()} — ${new Date(DATA.period.last).toLocaleDateString()}`:'No dated prompts';
-document.getElementById('generated').textContent=`Generated ${new Date(DATA.generated_at).toLocaleString()} · ${DATA.lexicon_size} variants`;
+document.getElementById('generated').textContent=`Generated ${new Date(DATA.generated_at).toLocaleString()} · ${DATA.lexicon_size} variants · swear-stats v${DATA.version||'?'}`;
 render('all');

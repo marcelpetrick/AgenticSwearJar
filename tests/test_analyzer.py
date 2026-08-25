@@ -260,6 +260,21 @@ class AnalyzerTests(unittest.TestCase):
 
         self.assertEqual(data["version"], __version__)
 
+    def test_report_states_the_version_that_generated_it(self) -> None:
+        codex = self.write_jsonl(
+            "codex.jsonl", [{"text": "heck", "ts": "2024-09-02T12:00:00+00:00"}]
+        )
+        data = serialize(
+            analyze([("codex", codex)], self.lexicon), {"codex": codex}, len(self.lexicon)
+        )
+        report = self.root / "report.html"
+
+        write_report(data, report)
+
+        rendered = report.read_text(encoding="utf-8")
+        self.assertIn(f'"version":"{__version__}"', rendered)
+        self.assertIn("swear-stats v${DATA.version", rendered)
+
     def test_public_redaction_keeps_only_first_character(self) -> None:
         codex = self.write_jsonl(
             "codex.jsonl",
