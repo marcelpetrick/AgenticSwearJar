@@ -116,7 +116,12 @@ def load_lexicon(paths: Iterable[Path]) -> dict[str, Lexeme]:
                 if len(row) != 4:
                     raise ValueError(f"{path}:{line_number}: expected 4 tab-separated fields")
                 variant, canonical, category, severity_text = (cell.strip() for cell in row)
-                severity = int(severity_text)
+                try:
+                    severity = int(severity_text)
+                except ValueError as error:
+                    raise ValueError(
+                        f"{path}:{line_number}: severity must be 1, 2 or 3, got {severity_text!r}"
+                    ) from error
                 if not variant or not canonical or not category or severity not in (1, 2, 3):
                     raise ValueError(f"{path}:{line_number}: invalid lexicon entry")
                 normalized = normalize_word(variant)

@@ -219,6 +219,17 @@ class AnalyzerTests(unittest.TestCase):
         self.assertEqual(data["sources"]["claude"]["streaks"]["longest_clean"], 1)
         self.assertEqual(data["sources"]["codex"]["streaks"]["longest_profane"], 1)
 
+    def test_lexicon_errors_name_the_offending_file_and_line(self) -> None:
+        path = self.root / "broken.tsv"
+        path.write_text("heck\theck\texpletive\t1\nblast\tblast\texpletive\thigh\n")
+
+        with self.assertRaises(ValueError) as raised:
+            load_lexicon([path])
+
+        message = str(raised.exception)
+        self.assertIn(f"{path}:2", message)
+        self.assertIn("severity must be 1, 2 or 3", message)
+
     def test_public_redaction_keeps_only_first_character(self) -> None:
         codex = self.write_jsonl(
             "codex.jsonl",
