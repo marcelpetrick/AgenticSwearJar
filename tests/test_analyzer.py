@@ -5,7 +5,14 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from swearstats.analyzer import analyze, load_lexicon, parse_boundary, redact_terms, serialize
+from swearstats.analyzer import (
+    DAILY_WINDOW_DAYS,
+    analyze,
+    load_lexicon,
+    parse_boundary,
+    redact_terms,
+    serialize,
+)
 from swearstats.report import write_report
 
 
@@ -116,6 +123,42 @@ class AnalyzerTests(unittest.TestCase):
         self.assertNotIn(secret, rendered)
         self.assertNotIn("/secret/path", rendered)
         self.assertIn("Aggregate counts only", rendered)
+
+    def test_one_stale_timestamp_does_not_inflate_the_daily_series(self) -> None:
+        codex = self.write_jsonl(
+            "codex.jsonl",
+            [
+                {"text": "heck", "ts": 0},
+                {"text": "heck", "ts": "2024-09-03T12:00:00+00:00"},
+            ],
+        )
+        result = analyze([("codex", codex)], self.lexicon)
+        data = serialize(result, {"codex": codex}, len(self.lexicon))
+
+        self.assertEqual(len(data["daily"]["all"]), DAILY_WINDOW_DAYS)
+        self.assertEqual(data["daily"]["all"][-1]["date"], "2024-09-03")
+        self.assertEqual(data["sources"]["all"]["totals"]["prompts"], 2)
+
+    def test_daily_series_covers_short_histories_exactly(self) -> None:
+        codex = self.write_jsonl(
+            "codex.jsonl",
+            [
+                {"text": "heck", "ts": "2024-09-01T12:00:00+00:00"},
+                {"text": "heck", "ts": "2024-09-03T12:00:00+00:00"},
+            ],
+        )
+        data = serialize(
+            analyze([("codex", codex)], self.lexicon), {"codex": codex}, len(self.lexicon)
+        )
+
+        self.assertEqual(
+            [entry["date"] for entry in data["daily"]["all"]],
+            [
+                "2024-09-01",
+                "2024-09-02",
+                "2024-09-03",
+            ],
+        )
 
     def test_public_redaction_keeps_only_first_character(self) -> None:
         codex = self.write_jsonl(

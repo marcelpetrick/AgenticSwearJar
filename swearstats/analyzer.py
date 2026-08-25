@@ -10,12 +10,16 @@ import unicodedata
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
-from datetime import date, datetime, time, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 WORD_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)*", re.UNICODE)
 SOURCE_NAMES = {"claude": "Claude Code", "codex": "Codex CLI"}
+# The dashboard's activity calendar renders 53 weeks, so emitting more daily
+# buckets than that only inflates the report. A single out-of-range timestamp
+# would otherwise stretch the range over decades of empty days.
+DAILY_WINDOW_DAYS = 371
 LENGTH_BUCKETS = (
     (0, 10, "1–10"),
     (11, 30, "11–30"),
@@ -265,10 +269,12 @@ def serialize(result: Analysis, sources: dict[str, Path], lexicon_size: int) -> 
 
     daily: dict[str, list[dict[str, Any]]] = {}
     if first and last:
+        window_end = last.date()
+        window_start = max(first.date(), window_end - timedelta(days=DAILY_WINDOW_DAYS - 1))
         for key in keys:
             daily[key] = [
                 {"date": day.isoformat(), **result.daily[key][day.isoformat()].as_dict()}
-                for day in _date_range(first.date(), last.date())
+                for day in _date_range(window_start, window_end)
             ]
 
     source_details: dict[str, Any] = {}
