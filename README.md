@@ -4,6 +4,9 @@
 
 ### The code was difficult. The harness is a machine. No biggie. Now there are charts.
 
+[![Local Pipeline](https://github.com/marcelpetrick/AgenticSwearJar/actions/workflows/local-pipeline.yml/badge.svg?branch=master)](https://github.com/marcelpetrick/AgenticSwearJar/actions/workflows/local-pipeline.yml)
+[![Manual Release](https://github.com/marcelpetrick/AgenticSwearJar/actions/workflows/manual-release.yml/badge.svg)](https://github.com/marcelpetrick/AgenticSwearJar/actions/workflows/manual-release.yml)
+
 **A private, local, zero-AI dashboard for the spicy parts of your Claude Code and Codex CLI history.**
 
 `one command` · `two coding agents` · `zero prompts uploaded`
