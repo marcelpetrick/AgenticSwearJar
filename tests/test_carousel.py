@@ -9,6 +9,7 @@ import unittest.mock
 from pathlib import Path
 from types import ModuleType
 
+from swearstats import __version__
 from swearstats.analyzer import analyze, load_lexicon, redact_terms, serialize
 
 CAROUSEL_PATH = Path(__file__).resolve().parent.parent / "scripts" / "buildLinkedInCarousel.py"
@@ -66,6 +67,12 @@ class CarouselTests(unittest.TestCase):
         self.assertEqual(rendered.count('<section class="slide">'), 4)
         self.assertIn("04 / 04", rendered)
         self.assertNotIn("heck", rendered)
+
+    def test_every_slide_stamps_the_tool_version(self) -> None:
+        rendered = carousel.render(self.build())
+
+        stamp = f'<span class="stamp">swear-stats v{__version__}</span>'
+        self.assertEqual(rendered.count(stamp), 4)
 
     def test_refuses_to_render_unredacted_terms(self) -> None:
         with self.assertRaises(ValueError) as raised:

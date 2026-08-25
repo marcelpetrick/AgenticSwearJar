@@ -61,6 +61,7 @@ def render(data: dict[str, Any]) -> str:
     period_start = data["period"]["first"][:10]
     period_end = data["period"]["last"][:10]
     terms = term_rows(combined["terms"])
+    stamp = f"swear-stats v{html.escape(str(data.get('version', 'unknown')))}"
 
     return f"""<!doctype html>
 <html lang="en">
@@ -79,7 +80,7 @@ body{{display:grid;gap:36px;padding:36px;justify-content:center}}.slide{{width:1
 .insight{{margin-top:25px;border-left:5px solid var(--acid);padding:8px 0 8px 24px;font-size:24px;color:#d9d5cc;position:relative}}.insight strong{{color:var(--acid)}}
 .terms{{position:relative;display:grid;gap:18px}}.term-row{{display:grid;grid-template-columns:160px 1fr 55px;gap:20px;align-items:center}}code{{font:800 26px ui-monospace,monospace;color:var(--ink)}}.bar{{height:18px;background:#272724;border-radius:99px;overflow:hidden}}.bar i{{height:100%;display:block;background:var(--acid);border-radius:inherit}}.term-row b{{font:800 20px ui-monospace,monospace;text-align:right}}.mini-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:42px;position:relative}}.mini{{border:1px solid var(--line);border-radius:19px;padding:22px}}.mini b{{display:block;font-size:38px;letter-spacing:-.04em}}.mini span{{font:700 11px ui-monospace,monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}}
 .flow{{display:grid;grid-template-columns:1fr 46px 1fr 46px 1fr;align-items:center;position:relative;margin:18px 0 48px}}.step{{height:180px;border:1px solid var(--line);border-radius:25px;padding:27px;background:var(--panel)}}.step b{{font-size:43px;display:block;margin-bottom:18px}}.step span{{color:var(--muted);font-size:18px}}.arrow{{text-align:center;color:var(--acid);font-size:30px}}.cta{{position:relative;background:var(--acid);color:#11140a;border-radius:30px;padding:32px 38px;margin-top:auto}}.cta b{{font-size:34px;letter-spacing:-.03em}}.cta span{{display:block;font:800 16px ui-monospace,monospace;margin-top:10px}}
-.footer{{position:absolute;left:78px;right:78px;bottom:35px;display:flex;justify-content:space-between;color:#77746d;font:700 11px ui-monospace,monospace;letter-spacing:.09em;text-transform:uppercase}}.slide:last-child .footer{{color:#77746d}}body.single{{padding:0;display:block;background:var(--night)}}body.single .slide{{display:none}}body.single .slide.selected{{display:flex}}
+.footer{{position:absolute;left:78px;right:78px;bottom:35px;display:flex;justify-content:space-between;color:#77746d;font:700 11px ui-monospace,monospace;letter-spacing:.09em;text-transform:uppercase}}.footer .stamp{{color:#5d5b56;text-transform:none;letter-spacing:.04em}}.slide:last-child .footer{{color:#77746d}}body.single{{padding:0;display:block;background:var(--night)}}body.single .slide{{display:none}}body.single .slide.selected{{display:flex}}
 </style>
 </head>
 <body>
@@ -88,21 +89,21 @@ body{{display:grid;gap:36px;padding:36px;justify-content:center}}.slide{{width:1
   <h1>Apparently,<br>I swear at<br><em>coding agents.</em></h1>
   <p class="lede">So I analyzed every prompt I sent to Claude Code and Codex CLI. <strong>Locally. With zero AI.</strong></p>
   <div class="stats"><div class="stat"><b>{number(totals["prompts"])}</b><span>prompts scanned</span></div><div class="stat hot"><b>{number(totals["hits"])}</b><span>matches found</span></div><div class="stat"><b>{totals["prompt_rate"]:.1f}%</b><span>spicy prompts</span></div></div>
-  <div class="footer"><span>Agentic Swear Jar</span><span>01 / 04</span></div>
+  <div class="footer"><span>Agentic Swear Jar</span><span class="stamp">{stamp}</span><span>01 / 04</span></div>
 </section>
 <section class="slide">
   <div class="kicker">Claude Code vs. Codex CLI</div>
   <h2>Which harness gets the <em>spicier</em> prompts?</h2>
   <div class="faceoff"><div class="agent claude"><h3>Claude Code</h3><div class="big">{claude["totals"]["hits_per_100_prompts"]:.2f}</div><small>matches / 100 prompts</small><div class="rate"><strong>{claude["totals"]["prompt_rate"]:.2f}%</strong> of prompts contained a match<br>{number(claude["totals"]["prompts"])} prompts total</div></div><div class="vs">VS</div><div class="agent codex"><h3>Codex CLI</h3><div class="big">{codex["totals"]["hits_per_100_prompts"]:.2f}</div><small>matches / 100 prompts</small><div class="rate"><strong>{codex["totals"]["prompt_rate"]:.2f}%</strong> of prompts contained a match<br>{number(codex["totals"]["prompts"])} prompts total</div></div></div>
   <div class="insight"><strong>Plot twist:</strong> Codex gets more spicy words per prompt. Claude sees them across more prompts.</div>
-  <div class="footer"><span>Normalized, because volume lies</span><span>02 / 04</span></div>
+  <div class="footer"><span>Normalized, because volume lies</span><span class="stamp">{stamp}</span><span>02 / 04</span></div>
 </section>
 <section class="slide">
   <div class="kicker">The vocabulary / marker safely applied</div>
   <h2>What frustration<br><em>looks like.</em></h2>
   <div class="terms">{terms}</div>
   <div class="mini-grid"><div class="mini"><b>{combined["streaks"]["longest_clean"]}</b><span>longest clean run</span></div><div class="mini"><b>{peak_hour:02d}:00</b><span>peak local hour</span></div><div class="mini"><b>{totals["hits_per_1000_words"]:.2f}</b><span>hits / 1k words</span></div></div>
-  <div class="footer"><span>Only first letters survived publication</span><span>03 / 04</span></div>
+  <div class="footer"><span>Only first letters survived publication</span><span class="stamp">{stamp}</span><span>03 / 04</span></div>
 </section>
 <section class="slide">
   <div class="kicker">Built without a classifier</div>
@@ -110,7 +111,7 @@ body{{display:grid;gap:36px;padding:36px;justify-content:center}}.slide{{width:1
   <div class="flow"><div class="step"><b>01</b><span>Stream local JSONL histories</span></div><div class="arrow">→</div><div class="step"><b>02</b><span>Regex tokens + hash-map lexicon</span></div><div class="arrow">→</div><div class="step"><b>03</b><span>Aggregate private, redacted stats</span></div></div>
   <p class="lede">{number(totals["words"])} words analyzed in one pass. No prompts uploaded. No raw text retained. Observed {period_start} → {period_end}.</p>
   <div class="cta"><b>Would you run this on your agent history?</b><span>github.com/marcelpetrick/AgenticSwearJar</span></div>
-  <div class="footer"><span>The harness is a machine. No feelings were hurt.</span><span>04 / 04</span></div>
+  <div class="footer"><span>The harness is a machine. No feelings were hurt.</span><span class="stamp">{stamp}</span><span>04 / 04</span></div>
 </section>
 <script>
 const requested=new URLSearchParams(location.search).get('slide');
