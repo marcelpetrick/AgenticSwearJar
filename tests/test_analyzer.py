@@ -230,6 +230,24 @@ class AnalyzerTests(unittest.TestCase):
         self.assertIn(f"{path}:2", message)
         self.assertIn("severity must be 1, 2 or 3", message)
 
+    def test_wordless_prompts_land_in_the_zero_labelled_bucket(self) -> None:
+        codex = self.write_jsonl(
+            "codex.jsonl",
+            [
+                {"text": "!!! ???", "ts": "2024-09-01T12:00:00+00:00"},
+                {"text": "heck", "ts": "2024-09-02T12:00:00+00:00"},
+            ],
+        )
+
+        data = serialize(
+            analyze([("codex", codex)], self.lexicon), {"codex": codex}, len(self.lexicon)
+        )
+
+        first_bucket = data["sources"]["all"]["lengths"][0]
+        self.assertEqual(first_bucket["label"], "0–10")
+        self.assertEqual(first_bucket["prompts"], 2)
+        self.assertEqual(first_bucket["words"], 1)
+
     def test_public_redaction_keeps_only_first_character(self) -> None:
         codex = self.write_jsonl(
             "codex.jsonl",

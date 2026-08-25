@@ -21,7 +21,7 @@ SOURCE_NAMES = {"claude": "Claude Code", "codex": "Codex CLI"}
 # would otherwise stretch the range over decades of empty days.
 DAILY_WINDOW_DAYS = 371
 LENGTH_BUCKETS = (
-    (0, 10, "1–10"),
+    (0, 10, "0–10"),
     (11, 30, "11–30"),
     (31, 75, "31–75"),
     (76, 150, "76–150"),
