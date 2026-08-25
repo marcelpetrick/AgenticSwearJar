@@ -16,10 +16,12 @@ dependencies = []
 [project.scripts]
 swear-stats = "swearstats.cli:main"
 
-# Tools invoked by localPipeline.sh, pinned exactly so every machine and CI run
-# checks against the same rule sets. Install with: pip install --group dev
+# Tools invoked by localPipeline.sh and the release workflow, pinned exactly so
+# every machine and CI run checks against the same rule sets and builds the same
+# artifacts. Install with: pip install --group dev
 [dependency-groups]
 dev = [
+    "build==1.5.0",
     "mypy==2.3.1",
     "ruff==0.16.4",
     "shellcheck-py==0.11.0.1",

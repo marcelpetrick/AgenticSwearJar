@@ -1,0 +1,196 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version without a leading v, for example 1.1.0"
+        required: true
+        type: string
+      publish_release:
+        description: "Create the GitHub tag and release after the build passes"
+        required: true
+        default: false
+        type: boolean
+      draft:
+        description: "Create the GitHub Release as a draft"
+        required: true
+        default: true
+        type: boolean
+      prerelease:
+        description: "Mark the GitHub Release as a prerelease"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build release artifacts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.13"
+
+      - name: Install the pinned toolchain
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --group dev
+          python -m pip install .
+
+      - name: Validate release version
+        env:
+          REQUESTED_VERSION: ${{ inputs.version }}
+          PUBLISH_RELEASE: ${{ inputs.publish_release }}
+        run: |
+          set -euo pipefail
+          PACKAGE_VERSION="$(python -c 'from swearstats import __version__; print(__version__)')"
+          if [[ "${REQUESTED_VERSION}" != "${PACKAGE_VERSION}" ]]; then
+            printf 'Requested version %s does not match package version %s.\n' \
+              "${REQUESTED_VERSION}" "${PACKAGE_VERSION}" >&2
+            exit 1
+          fi
+          if [[ ! "${REQUESTED_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?$ ]]; then
+            printf 'Release version %s is not a valid SemVer-like value.\n' \
+              "${REQUESTED_VERSION}" >&2
+            exit 1
+          fi
+          TAG="v${REQUESTED_VERSION}"
+          if [[ "${PUBLISH_RELEASE}" == "true" ]] \
+            && git rev-parse -q --verify "refs/tags/${TAG}" >/dev/null; then
+            printf 'Tag %s already exists.\n' "${TAG}" >&2
+            exit 1
+          fi
+
+      - name: Run local pipeline
+        run: |
+          set -o pipefail
+          mkdir -p release-artifacts/raw
+          ./localPipeline.sh 2>&1 | tee release-artifacts/raw/pipeline-console.log
+
+      - name: Build the distribution
+        run: python -m build --outdir dist .
+
+      - name: Verify the built wheel installs and runs
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python -m venv /tmp/verify
+          /tmp/verify/bin/pip install --quiet "dist/swear_stats-${VERSION}-py3-none-any.whl"
+          printf '{"text":"what the hell","ts":1725408000}\n' > /tmp/codex.jsonl
+          /tmp/verify/bin/swear-stats \
+            --codex-history /tmp/codex.jsonl \
+            --claude-history /tmp/absent.jsonl \
+            --output /tmp/report.html
+          grep -q "Agentic Swear Jar" /tmp/report.html
+
+      - name: Assemble release assets
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          PREFIX="agentic-swear-jar-${VERSION}"
+          mkdir -p release-artifacts/publish
+
+          cat > release-artifacts/raw/README.txt <<EOF
+          Agentic Swear Jar ${VERSION} - pipeline trace
+
+          Commit:       ${GITHUB_SHA}
+          Workflow run: ${GITHUB_RUN_ID}
+          Generated:    $(date --utc +'%Y-%m-%dT%H:%M:%SZ')
+
+          pipeline-console.log is the complete console output of localPipeline.sh
+          (unit tests, shellcheck, ruff check, ruff format --check, mypy).
+          EOF
+
+          cp dist/*.whl dist/*.tar.gz release-artifacts/publish/
+          # python -m zipfile keeps this free of an external zip binary and
+          # stores the given files flat, without their directory prefix.
+          python -m zipfile -c "release-artifacts/publish/${PREFIX}-packages.zip" \
+            dist/*.whl dist/*.tar.gz
+          python -m zipfile -c "release-artifacts/publish/${PREFIX}-pipeline-trace.zip" \
+            release-artifacts/raw/pipeline-console.log release-artifacts/raw/README.txt
+          ls -l release-artifacts/publish
+
+      - name: Upload complete release asset set
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: release-assets
+          path: release-artifacts/publish/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    if: ${{ inputs.publish_release }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Download release assets
+        uses: actions/download-artifact@v8.0.1
+        with:
+          name: release-assets
+          path: release-assets
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          DRAFT: ${{ inputs.draft }}
+          PRERELEASE: ${{ inputs.prerelease }}
+        run: |
+          set -euo pipefail
+          TAG="v${VERSION}"
+          PREFIX="agentic-swear-jar-${VERSION}"
+          DIST_PREFIX="swear_stats-${VERSION}"
+          flags=()
+          if [[ "${DRAFT}" == "true" ]]; then
+            flags+=(--draft)
+          fi
+          if [[ "${PRERELEASE}" == "true" ]]; then
+            flags+=(--prerelease)
+          fi
+          printf 'Manual release for Agentic Swear Jar %s.\n\n' "${TAG}" > release-notes.md
+          cat >> release-notes.md <<'EOF'
+          ## Release assets
+
+          | Asset | Description |
+          | --- | --- |
+          | Wheel (.whl) | Directly installable Python package. |
+          | Source distribution (.tar.gz) | Python source distribution. |
+          | Packages ZIP | Wheel and source distribution in one archive. |
+          | Pipeline trace ZIP | Complete console output of the quality pipeline. |
+
+          The wheel was installed into a clean virtualenv and used to generate a
+          report before the release was cut.
+          EOF
+          assets=(
+            "release-assets/${DIST_PREFIX}-py3-none-any.whl#Installable Python wheel"
+            "release-assets/${DIST_PREFIX}.tar.gz#Python source distribution"
+            "release-assets/${PREFIX}-packages.zip#Wheel and source distribution"
+            "release-assets/${PREFIX}-pipeline-trace.zip#Quality pipeline console trace"
+          )
+          gh release create "${TAG}" "${assets[@]}" \
+            --target "${GITHUB_SHA}" \
+            --title "Agentic Swear Jar ${TAG}" \
+            --notes-file release-notes.md \
+            "${flags[@]}"
