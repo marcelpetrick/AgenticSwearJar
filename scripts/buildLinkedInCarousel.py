@@ -6,8 +6,11 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+REQUIRED_SOURCES = ("all", "claude", "codex")
 
 
 def number(value: int | float) -> str:
@@ -27,9 +30,28 @@ def term_rows(terms: list[dict[str, Any]]) -> str:
     )
 
 
-def render(data: dict[str, Any]) -> str:
+def require_publishable(data: dict[str, Any]) -> None:
+    """Reject any report the four slides cannot be filled from.
+
+    The layout hard-codes a Claude-versus-Codex face-off and an observation
+    period, so a single-source or fully undated report has to fail with a clear
+    message rather than a KeyError or TypeError halfway through rendering.
+    """
     if not data.get("terms_redacted"):
         raise ValueError("refusing to build a public carousel from unredacted terms")
+    sources = data.get("sources", {})
+    missing = [name for name in REQUIRED_SOURCES if name not in sources]
+    if missing:
+        raise ValueError(
+            "the carousel needs both histories; the report is missing: " + ", ".join(missing)
+        )
+    period = data.get("period", {})
+    if not period.get("first") or not period.get("last"):
+        raise ValueError("the carousel needs dated prompts; the report has no observation period")
+
+
+def render(data: dict[str, Any]) -> str:
+    require_publishable(data)
 
     combined = data["sources"]["all"]
     claude = data["sources"]["claude"]
@@ -104,8 +126,13 @@ def main() -> int:
     parser.add_argument("output", type=Path)
     args = parser.parse_args()
     data = json.loads(args.input.read_text(encoding="utf-8"))
+    try:
+        document = render(data)
+    except ValueError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(render(data), encoding="utf-8")
+    args.output.write_text(document, encoding="utf-8")
     return 0
 
 
