@@ -114,6 +114,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 2
 
     result = analyze(sources.items(), lexicon, since=since, until=until)
+    excluded = sum(result.undated_excluded.values())
+    if excluded:
+        print(
+            f"warning: excluded {excluded:,} prompts without a timestamp "
+            "because a date window was requested",
+            file=sys.stderr,
+        )
     data = serialize(result, sources, len(lexicon))
     if args.redact_terms:
         redact_terms(data)

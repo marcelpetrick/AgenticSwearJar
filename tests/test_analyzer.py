@@ -103,6 +103,40 @@ class AnalyzerTests(unittest.TestCase):
         self.assertEqual(result.totals["all"].prompts, 1)
         self.assertEqual(result.terms["all"]["blast"], 1)
 
+    def test_undated_prompts_are_excluded_from_a_requested_window(self) -> None:
+        codex = self.write_jsonl(
+            "codex.jsonl",
+            [
+                {"text": "heck"},
+                {"text": "blast", "ts": "2024-09-02T12:00:00+00:00"},
+            ],
+        )
+
+        result = analyze(
+            [("codex", codex)],
+            self.lexicon,
+            since=parse_boundary("2024-09-02"),
+            until=parse_boundary("2024-09-02", end=True),
+        )
+
+        self.assertEqual(result.totals["all"].prompts, 1)
+        self.assertEqual(result.terms["all"]["blast"], 1)
+        self.assertEqual(result.undated_excluded["codex"], 1)
+
+    def test_undated_prompts_are_kept_when_no_window_is_requested(self) -> None:
+        codex = self.write_jsonl(
+            "codex.jsonl",
+            [
+                {"text": "heck"},
+                {"text": "blast", "ts": "2024-09-02T12:00:00+00:00"},
+            ],
+        )
+
+        result = analyze([("codex", codex)], self.lexicon)
+
+        self.assertEqual(result.totals["all"].prompts, 2)
+        self.assertEqual(result.undated_excluded["codex"], 0)
+
     def test_report_does_not_embed_prompt_text_or_project_path(self) -> None:
         secret = "SUPER_SECRET_PROMPT_TEXT"
         claude = self.write_jsonl(

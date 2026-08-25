@@ -102,6 +102,7 @@ class Analysis:
     events: list[tuple[datetime, bool, str]] = field(default_factory=list)
     malformed: Counter[str] = field(default_factory=Counter)
     missing_timestamp: Counter[str] = field(default_factory=Counter)
+    undated_excluded: Counter[str] = field(default_factory=Counter)
 
 
 def load_lexicon(paths: Iterable[Path]) -> dict[str, Lexeme]:
@@ -191,11 +192,16 @@ def analyze(
     until: datetime | None = None,
 ) -> Analysis:
     result = Analysis()
+    # A prompt with no timestamp cannot be shown to fall inside a requested
+    # window, so it is excluded whenever one is given. Unfiltered runs keep it.
+    windowed = since is not None or until is not None
     for source, path in inputs:
         for prompt in read_history(path, source, result):
-            if prompt.timestamp and since and prompt.timestamp < since:
-                continue
-            if prompt.timestamp and until and prompt.timestamp >= until:
+            if prompt.timestamp is None:
+                if windowed:
+                    result.undated_excluded[source] += 1
+                    continue
+            elif (since and prompt.timestamp < since) or (until and prompt.timestamp >= until):
                 continue
             words = [normalize_word(match.group()) for match in WORD_RE.finditer(prompt.text)]
             hits = [lexicon[word] for word in words if word in lexicon]
@@ -321,6 +327,7 @@ def serialize(result: Analysis, sources: dict[str, Path], lexicon_size: int) -> 
                 "projects": len(result.projects[source]),
                 "malformed_lines": result.malformed[source],
                 "missing_timestamps": result.missing_timestamp[source],
+                "undated_excluded": result.undated_excluded[source],
             }
             for source in sources
         },
