@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from swearstats import __version__
 from swearstats.analyzer import (
     DAILY_WINDOW_DAYS,
     analyze,
@@ -247,6 +248,17 @@ class AnalyzerTests(unittest.TestCase):
         self.assertEqual(first_bucket["label"], "0–10")
         self.assertEqual(first_bucket["prompts"], 2)
         self.assertEqual(first_bucket["words"], 1)
+
+    def test_aggregate_output_records_the_tool_version(self) -> None:
+        codex = self.write_jsonl(
+            "codex.jsonl", [{"text": "heck", "ts": "2024-09-02T12:00:00+00:00"}]
+        )
+
+        data = serialize(
+            analyze([("codex", codex)], self.lexicon), {"codex": codex}, len(self.lexicon)
+        )
+
+        self.assertEqual(data["version"], __version__)
 
     def test_public_redaction_keeps_only_first_character(self) -> None:
         codex = self.write_jsonl(

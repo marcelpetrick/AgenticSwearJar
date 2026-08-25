@@ -14,6 +14,8 @@ from datetime import date, datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
+from . import __version__
+
 WORD_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)*", re.UNICODE)
 SOURCE_NAMES = {"claude": "Claude Code", "codex": "Codex CLI"}
 # The dashboard's activity calendar renders 53 weeks, so emitting more daily
@@ -339,6 +341,7 @@ def serialize(result: Analysis, sources: dict[str, Path], lexicon_size: int) -> 
         }
 
     return {
+        "version": __version__,
         "generated_at": datetime.now().astimezone().isoformat(timespec="seconds"),
         "period": {
             "first": first.isoformat(timespec="seconds") if first else None,
