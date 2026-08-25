@@ -194,6 +194,31 @@ class AnalyzerTests(unittest.TestCase):
             ],
         )
 
+    def test_streaks_are_chronological_per_source_and_combined(self) -> None:
+        claude = self.write_jsonl(
+            "claude.jsonl",
+            [
+                {"display": "clean", "timestamp": "2024-09-01T10:00:00+00:00"},
+                {"display": "heck", "timestamp": "2024-09-01T12:00:00+00:00"},
+            ],
+        )
+        codex = self.write_jsonl(
+            "codex.jsonl",
+            [
+                {"text": "clean", "ts": "2024-09-01T11:00:00+00:00"},
+                {"text": "blast", "ts": "2024-09-01T13:00:00+00:00"},
+            ],
+        )
+        sources = {"claude": claude, "codex": codex}
+
+        data = serialize(analyze(sources.items(), self.lexicon), sources, len(self.lexicon))
+
+        # Interleaved by time: clean, clean, profane, profane.
+        self.assertEqual(data["sources"]["all"]["streaks"]["longest_clean"], 2)
+        self.assertEqual(data["sources"]["all"]["streaks"]["longest_profane"], 2)
+        self.assertEqual(data["sources"]["claude"]["streaks"]["longest_clean"], 1)
+        self.assertEqual(data["sources"]["codex"]["streaks"]["longest_profane"], 1)
+
     def test_public_redaction_keeps_only_first_character(self) -> None:
         codex = self.write_jsonl(
             "codex.jsonl",

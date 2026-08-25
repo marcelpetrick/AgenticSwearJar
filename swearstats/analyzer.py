@@ -251,27 +251,52 @@ def _date_range(first: date, last: date) -> Iterator[date]:
         current = date.fromordinal(current.toordinal() + 1)
 
 
-def _streaks(events: list[tuple[datetime, bool, str]]) -> dict[str, int]:
-    ordered = sorted(events, key=lambda event: event[0])
-    longest_clean = current_clean = longest_profane = current_profane = 0
-    for _, is_profane, _ in ordered:
+@dataclass
+class _Streak:
+    """Running longest-run state for one source key."""
+
+    longest_clean: int = 0
+    longest_profane: int = 0
+    current_clean: int = 0
+    current_profane: int = 0
+
+    def add(self, is_profane: bool) -> None:
         if is_profane:
-            current_profane += 1
-            longest_profane = max(longest_profane, current_profane)
-            current_clean = 0
+            self.current_profane += 1
+            self.longest_profane = max(self.longest_profane, self.current_profane)
+            self.current_clean = 0
         else:
-            current_clean += 1
-            longest_clean = max(longest_clean, current_clean)
-            current_profane = 0
-    return {"longest_clean": longest_clean, "longest_profane": longest_profane}
+            self.current_clean += 1
+            self.longest_clean = max(self.longest_clean, self.current_clean)
+            self.current_profane = 0
+
+    def as_dict(self) -> dict[str, int]:
+        return {"longest_clean": self.longest_clean, "longest_profane": self.longest_profane}
+
+
+def _streaks(
+    events: list[tuple[datetime, bool, str]], keys: list[str]
+) -> dict[str, dict[str, int]]:
+    """Fold every key's streaks in one chronological pass over the events.
+
+    The previous implementation sorted and copied the event list once per key,
+    which tripled peak memory during serialization for no extra information.
+    """
+    running = {key: _Streak() for key in keys}
+    for _, is_profane, source in sorted(events, key=lambda event: event[0]):
+        if "all" in running:
+            running["all"].add(is_profane)
+        if source in running:
+            running[source].add(is_profane)
+    return {key: streak.as_dict() for key, streak in running.items()}
 
 
 def serialize(result: Analysis, sources: dict[str, Path], lexicon_size: int) -> dict[str, Any]:
     source_keys = [key for key in ("claude", "codex") if key in sources]
     keys = ["all", *source_keys]
-    dated_events = [event for event in result.events]
-    first = min((event[0] for event in dated_events), default=None)
-    last = max((event[0] for event in dated_events), default=None)
+    first = min((event[0] for event in result.events), default=None)
+    last = max((event[0] for event in result.events), default=None)
+    streaks = _streaks(result.events, keys)
 
     daily: dict[str, list[dict[str, Any]]] = {}
     if first and last:
@@ -285,9 +310,6 @@ def serialize(result: Analysis, sources: dict[str, Path], lexicon_size: int) -> 
 
     source_details: dict[str, Any] = {}
     for key in keys:
-        source_events = (
-            dated_events if key == "all" else [event for event in dated_events if event[2] == key]
-        )
         hit_counts = [bucket.hits for bucket in result.daily[key].values() if bucket.hits]
         source_details[key] = {
             "label": "Combined" if key == "all" else SOURCE_NAMES[key],
@@ -307,7 +329,7 @@ def serialize(result: Analysis, sources: dict[str, Path], lexicon_size: int) -> 
                 {"label": label, **result.lengths[key][label].as_dict()}
                 for _, _, label in LENGTH_BUCKETS
             ],
-            "streaks": _streaks(source_events),
+            "streaks": streaks[key],
             "median_active_day_hits": statistics.median(hit_counts) if hit_counts else 0,
         }
 

@@ -95,9 +95,9 @@ compiled Unicode-aware regular expression. Normalized tokens are checked against
 map, making lookup effectively constant-time. Only counters, date buckets, and tiny timestamp/event
 tuples survive analysis.
 
-For an input containing *n* characters and *w* words, the main scan is **O(n + w)**. Memory use is
-independent of prompt content and grows only with the number of dates, sessions, and aggregate
-labels. It does not shell out to `grep` or `jq`, so multiline JSON strings, Unicode, and malformed
+For an input containing *n* characters and *w* words, the main scan is **O(n + w)**. No prompt text
+is retained: memory grows with the number of dates, sessions, and aggregate labels, plus one small
+timestamp/flag tuple per dated prompt, which is what the longest-run statistics are folded from. It does not shell out to `grep` or `jq`, so multiline JSON strings, Unicode, and malformed
 records are handled consistently in one pass.
 
 Matching is case-insensitive and uses whole tokens. This avoids classic substring mistakes such as
