@@ -13,6 +13,12 @@
 
 </div>
 
+**Author: Marcel Petrick <mail@marcelpetrick.it>**
+
+**License: GPLv3 or later. See `LICENSE`.**
+
+**Note: project is generated with AI.**
+
 ---
 
 ## Why this matters — and why it is fun
@@ -34,13 +40,6 @@ the report.
 ## Current state
 
 ![](media/currentState.png)
-
-
-**Author: Marcel Petrick <mail@marcelpetrick.it>**
-
-**License: GPLv3 or later. See `LICENSE`.**
-
-**Note: projected is generated with AI.**
 
 ## Make the report
 
