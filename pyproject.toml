@@ -21,9 +21,9 @@ swear-stats = "swearstats.cli:main"
 # artifacts. Install with: pip install --group dev
 [dependency-groups]
 dev = [
-    "build==1.5.0",
-    "mypy==2.3.1",
-    "ruff==0.16.4",
+    "build==1.6.1",
+    "mypy==2.4.0",
+    "ruff==0.17.1",
     "shellcheck-py==0.11.0.1",
 ]
 
