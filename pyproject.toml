@@ -28,7 +28,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["swearstats"]
+packages = ["swearstats", "swearstats.assets", "swearstats.data"]
 
 [tool.setuptools.package-data]
 swearstats = ["data/*.tsv", "assets/*.css", "assets/*.js"]
