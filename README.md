@@ -75,20 +75,21 @@ The dates are inclusive and interpreted in the machine's local timezone.
 
 ## What the dashboard extracts
 
-The report has combined, Claude Code, and Codex CLI views. Each includes:
+The report has combined, Claude Code, and Codex CLI views. Each shows:
 
-- prompt count, word count, total matches, and prompts containing at least one match;
-- matches per 100 prompts and per 1,000 words, so tools with different usage volumes compare fairly;
-- daily and monthly trends, local hour-of-day activity, and weekday patterns;
+- prompts, words, total matches, and prompts with at least one match;
+- matches per 100 prompts and per 1,000 words, so tools with different volumes compare fairly;
+- a head-to-head of both tools, normalized by prompt count;
+- the monthly trend, a daily activity calendar, and matches by local hour and weekday;
 - canonical vocabulary rankings (`fucked`, `fucking`, and `fucks` become `fuck`);
 - mild, moderate, and strong intensity counts;
-- match rates by prompt-length bucket;
-- longest clean and spicy prompt streaks;
-- distinct session and Claude project counts, without exposing their identifiers; and
-- malformed-record diagnostics, because JSONL occasionally has a bad day too.
+- match rates by prompt length;
+- the longest clean and spicy prompt streaks; and
+- the fine print: session and Claude project counts, skipped slash commands, ignored pattern
+  mentions, malformed lines, and prompts without a timestamp.
 
-The dashboard intentionally does **not** contain prompts, snippets, session IDs, project names, or
-project paths.
+The JSON output carries the same aggregates. Neither contains prompts, snippets, session IDs,
+project names, or project paths.
 
 ## How it works
 
@@ -99,12 +100,22 @@ tuples survive analysis.
 
 For an input containing *n* characters and *w* words, the main scan is **O(n + w)**. No prompt text
 is retained: memory grows with the number of dates, sessions, and aggregate labels, plus one small
-timestamp/flag tuple per dated prompt, which is what the longest-run statistics are folded from. It does not shell out to `grep` or `jq`, so multiline JSON strings, Unicode, and malformed
-records are handled consistently in one pass.
+timestamp/flag tuple per dated prompt for the streak statistics. Nothing shells out to `grep` or
+`jq`, so multiline JSON strings, Unicode, and malformed records are handled in one pass.
 
 Matching is case-insensitive and uses whole tokens. This avoids classic substring mistakes such as
 matching `ass` inside `class` or `hell` inside `shell`. Underscores act as separators, which is
 useful for identifiers such as `what_the_hell`.
+
+Two things are deliberately not counted:
+
+- **Bare slash commands.** A prompt that is only `/exit`, `/model`, or `/compact` is a harness
+  control, not something you wrote. Claude Code records these; Codex CLI mostly does not. Counting
+  them would dilute Claude Code's rates and skew the face-off. `/loop fix this crap` still counts.
+- **Pattern mentions.** A word glued to `|`, as in `grep -E '(damn|crap)'`, names the word instead
+  of using it.
+
+Both are counted separately and shown in the fine print, so nothing disappears silently.
 
 ## The English lexicon
 
@@ -119,6 +130,9 @@ four tab-separated columns:
 fucking      fuck         expletive     3
 wtf          fuck         abbreviation  2
 ```
+
+The list skips forms that are mostly typos in practice: `asses` is nearly always a misspelt
+`assess` in a prompt, so only `ass` is listed.
 
 Edit [`swearstats/data/en.tsv`](swearstats/data/en.tsv), or layer personal terms on top without
 changing the repository:
@@ -148,7 +162,7 @@ usage: swear-stats [-h] [--claude-history PATH] [--codex-history PATH]
                    [--lexicon TSV] [--replace-lexicon]
                    [--since YYYY-MM-DD] [--until YYYY-MM-DD]
                    [-o PATH] [--json PATH] [--redact-terms]
-                   [--open] [--strict-inputs]
+                   [--open] [--strict-inputs] [--version]
 ```
 
 Examples:
@@ -207,19 +221,24 @@ source .venv/bin/activate
 ./localPipeline.sh
 ```
 
-The application has no runtime dependencies. The development pipeline expects `shellcheck`, `ruff`,
-and `mypy` on `PATH`; it runs the complete test suite, shell and Python linting, formatting checks,
-strict type checking, and Git's whitespace validation, stopping at the first failure.
+The application has no runtime dependencies. The pipeline expects `shellcheck`, `ruff`, and `mypy`
+on `PATH`. It runs the test suite, shell and Python linting, format checks, strict type checking,
+and Git's whitespace validation, and stops at the first failure.
 
-Those three tools are pinned to exact versions in the `dev` dependency group in `pyproject.toml`,
-so every machine checks against the same rule sets — a linter minor release can otherwise enable
-rules that pass locally and fail elsewhere. `shellcheck-py` ships the `shellcheck` binary as a
-wheel; a system-wide `shellcheck` of the same version works just as well. Installing the group
-needs pip 25.1 or newer for `--group`.
+The `dev` dependency group in `pyproject.toml` pins those tools and `build` to exact versions, so
+every machine checks against the same rule sets. A linter minor release can otherwise enable rules
+that pass locally and fail elsewhere. `shellcheck-py` ships the `shellcheck` binary as a wheel; a
+system-wide `shellcheck` of the same version works too. `--group` needs pip 25.1 or newer.
 
-The test suite covers both history shapes, canonical variants, Unicode-aware whole-word behavior,
-date filtering, malformed records, combined statistics, and the promise that raw prompt text and
-project paths never enter the HTML.
+The tests cover both history shapes, canonical variants, Unicode-aware whole-word matching, skipped
+slash commands, pattern mentions, date filtering, malformed records, combined statistics, and the
+promise that raw prompt text and project paths never enter the HTML.
+
+## Release
+
+Bump `__version__` in `swearstats/__init__.py`, push, and run the **Manual Release** workflow with
+the same version. It runs the pipeline, builds the wheel and sdist, installs the wheel into a clean
+virtualenv, generates a report with it, and only then tags and publishes the GitHub release.
 
 ## Publish the LinkedIn carousel
 
@@ -250,7 +269,11 @@ published.
 
 - This is exact lexical matching, not contextual language understanding.
 - It will miss creative punctuation, deliberate obfuscation, and novel spellings.
-- It can count a quoted swear word or code identifier even when the prompt is discussing the word.
+- It still counts a word that is discussed rather than used, unless it sits in a `|` pattern.
+  Pasted tool output such as `381 fuck` in a word-frequency table counts.
+- Typos can match: `bugger` for `bigger` is a hit.
+- Codex CLI stores pasted text in its history; Claude Code stores a `[Pasted text]` placeholder.
+  Words and matches in pastes therefore count for Codex CLI only.
 - Severity is editorial metadata, not science.
 - Missing or disabled history cannot be reconstructed.
 - Counts answer “what matched this list?”—not “was this prompt offensive?” Those are very different
