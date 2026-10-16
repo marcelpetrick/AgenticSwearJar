@@ -291,6 +291,43 @@ class AnalyzerTests(unittest.TestCase):
         self.assertEqual(data["sources"]["all"]["terms"][0]["term"], "h███")
         self.assertTrue(data["terms_redacted"])
 
+    def test_bare_slash_commands_are_skipped_but_commands_with_text_count(self) -> None:
+        claude = self.write_jsonl(
+            "claude.jsonl",
+            [
+                {"display": "/exit", "timestamp": 1_725_408_000_000},
+                {"display": "  /plugin:review-branch  ", "timestamp": 1_725_408_000_000},
+                {"display": "/loop fix the heck out of it", "timestamp": 1_725_408_000_000},
+                {"display": "/usr/bin/heck", "timestamp": 1_725_408_000_000},
+            ],
+        )
+
+        result = analyze([("claude", claude)], self.lexicon)
+        data = serialize(result, {"claude": claude}, len(self.lexicon))
+
+        self.assertEqual(result.totals["claude"].prompts, 2)
+        self.assertEqual(result.totals["claude"].hits, 2)
+        self.assertEqual(data["source_meta"]["claude"]["commands_skipped"], 2)
+
+    def test_words_inside_a_pattern_alternation_are_mentions_not_hits(self) -> None:
+        codex = self.write_jsonl(
+            "codex.jsonl",
+            [{"text": "grep -E '(heck|blast)' log; heck, |blast| twice", "ts": 1_725_408_000}],
+        )
+
+        result = analyze([("codex", codex)], self.lexicon)
+        data = serialize(result, {"codex": codex}, len(self.lexicon))
+
+        self.assertEqual(result.totals["codex"].hits, 1)
+        self.assertEqual(result.totals["codex"].words, 8)
+        self.assertEqual(data["source_meta"]["codex"]["pattern_mentions"], 3)
+
+    def test_bundled_lexicon_does_not_mistake_a_misspelt_assess_for_profanity(self) -> None:
+        bundled = load_lexicon([Path(__file__).parent.parent / "swearstats/data/en.tsv"])
+
+        self.assertNotIn("asses", bundled)
+        self.assertIn("ass", bundled)
+
 
 if __name__ == "__main__":
     unittest.main()

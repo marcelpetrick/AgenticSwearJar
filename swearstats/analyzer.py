@@ -17,6 +17,14 @@ from typing import Any
 from . import __version__
 
 WORD_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)*", re.UNICODE)
+# A prompt that is nothing but a slash command (/exit, /model, /compact) is a
+# harness control, not something the user wrote. Claude Code records these in
+# its history while Codex CLI mostly does not, so counting them would dilute
+# Claude Code's rates and skew the comparison between the two tools.
+COMMAND_RE = re.compile(r"/[A-Za-z][\w:.-]*")
+# A word glued to "|" is an alternative in a pattern such as grep -E
+# '(damn|heck)', which names the word rather than uses it.
+PATTERN_SEPARATOR = "|"
 SOURCE_NAMES = {"claude": "Claude Code", "codex": "Codex CLI"}
 # The dashboard's activity calendar renders 53 weeks, so emitting more daily
 # buckets than that only inflates the report. A single out-of-range timestamp
@@ -105,6 +113,8 @@ class Analysis:
     malformed: Counter[str] = field(default_factory=Counter)
     missing_timestamp: Counter[str] = field(default_factory=Counter)
     undated_excluded: Counter[str] = field(default_factory=Counter)
+    commands_skipped: Counter[str] = field(default_factory=Counter)
+    pattern_mentions: Counter[str] = field(default_factory=Counter)
 
 
 def load_lexicon(paths: Iterable[Path]) -> dict[str, Lexeme]:
@@ -204,16 +214,34 @@ def analyze(
     windowed = since is not None or until is not None
     for source, path in inputs:
         for prompt in read_history(path, source, result):
+            if COMMAND_RE.fullmatch(prompt.text.strip()):
+                result.commands_skipped[source] += 1
+                continue
             if prompt.timestamp is None:
                 if windowed:
                     result.undated_excluded[source] += 1
                     continue
             elif (since and prompt.timestamp < since) or (until and prompt.timestamp >= until):
                 continue
-            words = [normalize_word(match.group()) for match in WORD_RE.finditer(prompt.text)]
-            hits = [lexicon[word] for word in words if word in lexicon]
-            _record(result, prompt, len(words), hits)
+            word_count = 0
+            hits: list[Lexeme] = []
+            for match in WORD_RE.finditer(prompt.text):
+                word_count += 1
+                lexeme = lexicon.get(normalize_word(match.group()))
+                if lexeme is None:
+                    continue
+                if _in_pattern(prompt.text, match.start(), match.end()):
+                    result.pattern_mentions[source] += 1
+                else:
+                    hits.append(lexeme)
+            _record(result, prompt, word_count, hits)
     return result
+
+
+def _in_pattern(text: str, start: int, end: int) -> bool:
+    before = text[start - 1] if start else ""
+    after = text[end] if end < len(text) else ""
+    return PATTERN_SEPARATOR in (before, after)
 
 
 def _record(result: Analysis, prompt: Prompt, word_count: int, hits: list[Lexeme]) -> None:
@@ -358,6 +386,8 @@ def serialize(result: Analysis, sources: dict[str, Path], lexicon_size: int) -> 
                 "malformed_lines": result.malformed[source],
                 "missing_timestamps": result.missing_timestamp[source],
                 "undated_excluded": result.undated_excluded[source],
+                "commands_skipped": result.commands_skipped[source],
+                "pattern_mentions": result.pattern_mentions[source],
             }
             for source in sources
         },
